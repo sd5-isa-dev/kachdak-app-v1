@@ -1,35 +1,28 @@
-import type {Metadata} from 'next';
-import { Poppins } from 'next/font/google';
-import './globals.css'; // Global styles
+import type { Metadata } from 'next';
+import './globals.css';
+import { AuthProvider } from '@/components/AuthProvider';
+import { Outfit, Inter } from 'next/font/google';
 
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-poppins',
-});
+import { BottomNav } from '@/components/BottomNav';
 
-import { Providers } from './providers';
+const outfit = Outfit({ subsets: ['latin'], variable: '--font-outfit' });
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
-  title: 'Kechdak',
-  description: 'A complete, production-ready mobile app for coffee ordering',
+  title: 'Kechdak Coffee',
+  description: 'A modern, production-ready coffee shop application with a curated menu, shopping cart, and checkout flow.',
 };
 
-export const viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
-
-export default function RootLayout({children}: {children: React.ReactNode}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={poppins.variable}>
-      <body className="bg-gray-100 min-h-screen flex items-center justify-center font-sans antialiased" suppressHydrationWarning>
-        <div className="w-full h-[100dvh] sm:h-[844px] sm:w-[390px] sm:rounded-[40px] sm:overflow-hidden sm:shadow-2xl bg-[#FDF1E8] relative flex flex-col">
-          <Providers>
+    <html lang="en" className={`${outfit.variable} ${inter.variable}`}>
+      <body className="font-sans antialiased bg-gray-100 text-[#3A1C20] min-h-screen flex justify-center" suppressHydrationWarning>
+        <div className="w-full max-w-md bg-[#FFF0E6] min-h-screen relative shadow-2xl overflow-hidden pb-24">
+          <AuthProvider>
             {children}
-          </Providers>
+            <BottomNav />
+          </AuthProvider>
         </div>
       </body>
     </html>

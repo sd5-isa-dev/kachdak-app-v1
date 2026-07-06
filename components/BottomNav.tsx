@@ -1,61 +1,36 @@
-'use client';
-import { Home, ShoppingBag, BookOpen, Heart, User } from 'lucide-react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { motion } from 'motion/react';
+"use client";
 
-export default function BottomNav() {
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Home, Map, Heart, User, ShoppingBag } from "lucide-react";
+
+export function BottomNav() {
   const pathname = usePathname();
 
-  const navItems = [
-    { icon: ShoppingBag, href: '/cart' },
-    { icon: BookOpen, href: '/menu' },
-    { icon: Heart, href: '/favorites' },
-    { icon: User, href: '/profile' },
-  ];
+  if (pathname.includes('/product/') || pathname.includes('/cart')) return null;
 
   return (
-    <div className="absolute bottom-0 w-full h-[90px] z-50">
-      {/* Floating Home Button */}
-      <div className="absolute left-1/2 -translate-x-1/2 -top-6 z-10">
-        <Link href="/">
-          <motion.div 
-            whileTap={{ scale: 0.9 }}
-            className="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-[0_8px_24px_rgba(210,96,31,0.3)] border-[6px] border-bg-light cursor-pointer"
-          >
-            <Home className="text-white w-7 h-7" />
-          </motion.div>
+    <div className="fixed bottom-0 w-full max-w-md mx-auto left-0 right-0 bg-[#3A1C20] text-[#FFF0E6] rounded-t-[2.5rem] shadow-lg z-50 h-20">
+      <div className="flex justify-between items-center px-6 h-full relative">
+        <Link href="/cart" className="text-[#FFF0E6]/60 hover:text-[#FFF0E6] transition-colors p-2">
+          <ShoppingBag size={24} />
         </Link>
-      </div>
+        <Link href="#" className="text-[#FFF0E6]/60 hover:text-[#FFF0E6] transition-colors p-2">
+          <Map size={24} />
+        </Link>
+        
+        <div className="relative -top-6">
+          <Link href="/" className="flex items-center justify-center w-16 h-16 rounded-full bg-[#C44C27] text-white shadow-lg border-4 border-[#FFF0E6]">
+            <Home size={28} />
+          </Link>
+        </div>
 
-      {/* Curved Nav Bar */}
-      <div className="w-full h-full bg-surface-dark curve-top px-6 flex items-center justify-between pt-4">
-        <div className="flex gap-8">
-          {navItems.slice(0, 2).map((item, idx) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link key={idx} href={item.href}>
-                <motion.div whileTap={{ scale: 0.9 }}>
-                  <Icon className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-white/60'}`} />
-                </motion.div>
-              </Link>
-            );
-          })}
-        </div>
-        <div className="flex gap-8">
-          {navItems.slice(2, 4).map((item, idx) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link key={idx} href={item.href}>
-                <motion.div whileTap={{ scale: 0.9 }}>
-                  <Icon className={`w-6 h-6 ${isActive ? 'text-primary' : 'text-white/60'}`} />
-                </motion.div>
-              </Link>
-            );
-          })}
-        </div>
+        <Link href="#" className="text-[#FFF0E6]/60 hover:text-[#FFF0E6] transition-colors p-2">
+          <Heart size={24} />
+        </Link>
+        <Link href="#" className="text-[#FFF0E6]/60 hover:text-[#FFF0E6] transition-colors p-2">
+          <User size={24} />
+        </Link>
       </div>
     </div>
   );

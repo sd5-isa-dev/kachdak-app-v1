@@ -1,213 +1,198 @@
-'use client';
+"use client";
 
-import { ArrowLeft, Edit2, Plus, Minus } from 'lucide-react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { motion, AnimatePresence } from 'motion/react';
-import { useStore } from '@/lib/store';
-import { useAuth } from '@/lib/auth';
-import { supabase, Product } from '@/lib/supabase';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { ChevronLeft, Edit2, Minus, Plus } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
+import { motion, AnimatePresence } from "motion/react";
+
+interface CartItem {
+  id: number;
+  quantity: number;
+  product: {
+    name: string;
+    price: string;
+    withSubtitle: string;
+    image: string;
+  };
+}
 
 export default function Cart() {
   const router = useRouter();
-  const { cart, updateQuantity, clearCart } = useStore();
-  const { user } = useAuth();
-  
-  const [products, setProducts] = useState<Record<string, Product>>({});
+  const { user, getToken, loading: authLoading } = useAuth();
+  const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkingOut, setCheckingOut] = useState(false);
 
   useEffect(() => {
-    async function loadProducts() {
-      const ids = [...new Set(cart.map(c => c.productId))];
-      if (ids.length === 0) {
-        setLoading(false);
-        return;
-      }
-      const { data } = await supabase.from('products').select('*').in('id', ids);
-      if (data) {
-        const productMap: Record<string, Product> = {};
-        data.forEach(p => productMap[p.id] = p);
-        setProducts(productMap);
-      }
-      setLoading(false);
+    if (authLoading) return;
+    if (!user) {
+      setTimeout(() => setLoading(false), 0);
+      return;
     }
-    loadProducts();
-  }, [cart]);
+    
+    let active = true;
+    getToken().then(token => {
+      fetch("/api/cart", {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (active) {
+          if (Array.isArray(data)) setItems(data);
+          setLoading(false);
+        }
+      });
+    });
+    return () => { active = false; };
+  }, [user, getToken, authLoading]);
 
-  const cartItems = cart.map(item => {
-    return { ...item, product: products[item.productId] };
-  }).filter(item => item.product); // remove invalid
-
-  const subtotal = cartItems.reduce((acc, item) => acc + (item.product!.price * item.quantity), 0);
-  const shipping = cartItems.length > 0 ? 2.50 : 0;
-  const taxes = subtotal * 0.12; // roughly 12% for the example
-  const total = subtotal + shipping + taxes;
-
-  const handleCheckout = async () => {
-    if (cartItems.length === 0 || !user) return;
-    setIsCheckingOut(true);
-
-    try {
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          total: total
-        })
-        .select('id')
-        .single();
-
-      if (orderError || !orderData) throw orderError;
-
-      const orderItems = cartItems.map(item => ({
-        order_id: orderData.id,
-        product_id: item.productId,
-        size: item.size,
-        quantity: item.quantity,
-        price: item.product!.price
-      }));
-
-      await supabase.from('order_items').insert(orderItems);
-
-      const cartIds = cartItems.map(item => item.id);
-      await supabase.from('cart_items').delete().in('id', cartIds);
-      clearCart();
-      
-      router.push(`/order-confirmed/${orderData.id}`);
-    } catch (error: any) {
-      console.error(error);
-      setCheckoutError(`Checkout failed: ${error.message || 'Unknown error'}`);
-    } finally {
-      setIsCheckingOut(false);
+  const updateQuantity = async (id: number, newQty: number) => {
+    if (newQty < 1) {
+      // Remove item
+      const token = await getToken();
+      await fetch(`/api/cart/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setItems(items.filter(item => item.id !== id));
+      return;
     }
+
+    setItems(items.map(item => item.id === id ? { ...item, quantity: newQty } : item));
+    const token = await getToken();
+    await fetch(`/api/cart/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ quantity: newQty })
+    });
   };
 
+  const checkout = async () => {
+    setCheckingOut(true);
+    const token = await getToken();
+    await fetch("/api/checkout", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    setItems([]);
+    setCheckingOut(false);
+    alert("Order placed successfully!");
+    router.push("/");
+  };
+
+  const subtotal = items.reduce((acc, item) => acc + (parseFloat(item.product.price) * item.quantity), 0);
+  const shipping = 1.00;
+  const taxes = 1.00;
+  const total = subtotal + (items.length > 0 ? shipping + taxes : 0);
+
+  if (loading) return <div className="p-8 text-center">Loading...</div>;
+
   return (
-    <div className="flex flex-col h-full bg-bg-light relative">
-      {/* Top Bar */}
-      <div className="px-6 pt-12 pb-4 flex items-center justify-between">
-        <button 
-          onClick={() => router.back()}
-          className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"
-        >
-          <ArrowLeft className="w-5 h-5 text-text-dark" />
+    <main className="flex flex-col min-h-screen bg-[#FFF0E6]">
+      {/* Header */}
+      <header className="flex justify-between items-center px-6 pt-12 pb-6">
+        <button onClick={() => router.back()} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[#C44C27] shadow-sm">
+          <ChevronLeft className="w-6 h-6" />
         </button>
-        <h1 className="text-xl font-bold text-text-dark">Cart</h1>
-        <button className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-sm">
-          <Edit2 className="w-4 h-4 text-white" />
+        <h1 className="text-xl font-bold font-outfit text-[#3A1C20]">Cart</h1>
+        <button className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[#C44C27] shadow-sm">
+          <Edit2 className="w-4 h-4" />
         </button>
-      </div>
+      </header>
 
-      <div className="px-6 mb-6 mt-2">
-        <h2 className="text-2xl font-bold text-text-dark mb-1">My Order</h2>
-        <p className="text-sm text-gray-500">You have <span className="text-primary font-bold">{cartItems.length}</span> items in your cart</p>
-      </div>
+      <div className="px-6 flex-1 pb-48 overflow-y-auto">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold font-outfit text-[#3A1C20] mb-1">My Order</h2>
+          <p className="text-sm text-gray-500">You have <span className="font-bold text-[#C44C27]">{items.length} items</span> in your cart.</p>
+        </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-[250px] hide-scrollbar">
-        {loading ? (
-          <div className="text-center text-gray-400 mt-10">Loading cart...</div>
-        ) : (
-        <AnimatePresence mode="popLayout">
-          {cartItems.map((item) => (
-            <motion.div
-              key={item.id}
-              layout
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95, x: -20 }}
-              className="bg-white rounded-[20px] p-3 mb-4 shadow-[0_4px_12px_rgba(0,0,0,0.03)] flex items-center gap-4"
-            >
-              <div className="relative w-16 h-16 rounded-full overflow-hidden flex-shrink-0 shadow-inner">
-                <Image 
-                  src={item.product!.image_url}
-                  alt={item.product!.name}
-                  fill
-                  className="object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-bold text-text-dark text-sm">{item.product!.name}</h3>
-                <p className="text-xs text-gray-500 mb-1">{item.size}</p>
-                <p className="text-primary font-bold text-sm">${item.product!.price.toFixed(2)}</p>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <motion.button 
-                  whileTap={{ scale: 0.8 }}
-                  onClick={() => updateQuantity(item.id, -1)}
-                  className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center text-primary bg-white"
-                >
-                  <Minus className="w-3 h-3" />
-                </motion.button>
-                <span className="text-sm font-bold text-text-dark w-4 text-center">{item.quantity}</span>
-                <motion.button 
-                  whileTap={{ scale: 0.8 }}
-                  onClick={() => updateQuantity(item.id, 1)}
-                  className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center text-primary bg-white"
-                >
-                  <Plus className="w-3 h-3" />
-                </motion.button>
-              </div>
-            </motion.div>
-          ))}
-          {cartItems.length === 0 && (
-            <div className="text-center text-gray-400 mt-10">Your cart is empty.</div>
-          )}
-        </AnimatePresence>
-        )}
-      </div>
-
-      {/* Order Summary Panel */}
-      <div className="absolute bottom-0 w-full bg-surface-dark curve-top px-8 pt-10 pb-8 flex flex-col z-20">
-        
-        <div className="flex justify-between items-center mb-3 text-white/70 text-sm">
-          <span>Subtotal</span>
-          <span>${subtotal.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between items-center mb-3 text-white/70 text-sm">
-          <span>Shipping Cost</span>
-          <span>${shipping.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between items-center mb-4 text-white/70 text-sm pb-4 border-b border-white/10">
-          <span>Taxes</span>
-          <span>${taxes.toFixed(2)}</span>
-        </div>
-        
-        <div className="flex justify-between items-center mb-6 text-white text-xl font-bold">
-          <span>Total</span>
-          <AnimatePresence mode="popLayout">
-            <motion.span 
-              key={total}
-              initial={{ y: -10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="tracking-wide"
-            >
-              ${total.toFixed(2)}
-            </motion.span>
+        {/* Cart Items */}
+        <div className="flex flex-col gap-4">
+          <AnimatePresence>
+            {items.map((item) => (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                key={item.id} 
+                className="bg-white rounded-[2rem] p-4 flex items-center shadow-sm"
+              >
+                <div className="relative w-16 h-16 shrink-0 drop-shadow-md">
+                  <Image
+                    src={item.product.image}
+                    alt={item.product.name}
+                    fill
+                    className="object-cover rounded-full"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div className="flex-1 ml-4">
+                  <h3 className="font-bold text-[#3A1C20]">{item.product.name}</h3>
+                  <p className="text-xs text-gray-400 mb-2">{item.product.withSubtitle}</p>
+                  <span className="font-bold text-[#C44C27]">${item.product.price}</span>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button 
+                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                    className="w-8 h-8 rounded-full border border-[#3A1C20]/20 flex items-center justify-center text-[#3A1C20] hover:bg-[#3A1C20]/5 transition"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="font-bold text-[#3A1C20] w-4 text-center">{item.quantity}</span>
+                  <button 
+                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                    className="w-8 h-8 rounded-full border border-[#3A1C20]/20 flex items-center justify-center text-[#3A1C20] hover:bg-[#3A1C20]/5 transition"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              </motion.div>
+            ))}
           </AnimatePresence>
+          {items.length === 0 && !loading && (
+            <div className="text-center text-gray-500 py-10">
+              Your cart is empty.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Checkout Summary */}
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#C44C27] text-white rounded-t-[3rem] px-8 py-8 shadow-[0_-10px_40px_rgba(196,76,39,0.2)] z-40">
+        <div className="space-y-4 mb-8">
+          <div className="flex justify-between text-sm">
+            <span className="text-white/80">Subtotal</span>
+            <span className="font-medium">${subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-white/80">Shipping Cost</span>
+            <span className="font-medium">${items.length ? shipping.toFixed(2) : "0.00"}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-white/80">Taxes</span>
+            <span className="font-medium">${items.length ? taxes.toFixed(2) : "0.00"}</span>
+          </div>
+          <div className="h-px w-full bg-white/20 my-2" />
+          <div className="flex justify-between items-center">
+            <span className="font-medium text-lg">Total</span>
+            <span className="font-bold text-2xl font-outfit">${total.toFixed(2)}</span>
+          </div>
         </div>
 
-        {checkoutError && (
-          <div className="mb-4 bg-red-500/20 text-red-100 p-3 rounded-xl text-sm text-center">
-            {checkoutError}
-          </div>
-        )}
-
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={handleCheckout}
-          className="w-full bg-primary text-white font-bold text-lg py-4 rounded-full shadow-lg flex justify-center items-center"
-          disabled={cartItems.length === 0 || isCheckingOut}
+        <button 
+          onClick={checkout}
+          disabled={checkingOut || items.length === 0}
+          className="w-full bg-[#3A1C20] text-white py-4 rounded-full font-bold shadow-lg hover:bg-[#2A1417] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         >
-          {isCheckingOut ? 'Processing...' : 'Proceed to Checkout'}
-        </motion.button>
-
+          {checkingOut ? "Processing..." : "Proceed to Checkout"}
+        </button>
       </div>
-    </div>
+    </main>
   );
 }

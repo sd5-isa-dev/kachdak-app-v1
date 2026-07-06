@@ -1,62 +1,75 @@
-# Kechdak
+# Kechdak Coffee Shop
 
-A fully functional, pixel-perfect mobile application for ordering coffee, built with Next.js, React, Tailwind CSS, and Supabase.
+A modern, production-ready coffee shop application with a curated menu, shopping cart, and checkout flow.
+Built with Next.js, Tailwind CSS, and Cloud SQL (PostgreSQL).
 
-> **Note on Environment Adaptation:**
-> While the original request specified Flutter, this project is running in a purely web-based sandboxed environment that strictly supports Node.js/Next.js and Web technologies. To deliver a working, interactive experience here, the app has been meticulously built as a high-fidelity **Mobile Progressive Web App (PWA)** using React and Tailwind CSS. It visually and functionally mimics the requested Flutter application and includes the complete Supabase SQL schema.
+## Running Locally
 
-## Features
-
-- **Home Screen**: Categorized product grid, personalized greeting, and animated category slider.
-- **Product Detail**: High-resolution immersive product imagery, animated size selection, quantity stepper, and "Add to Cart" functionality.
-- **Cart**: Dynamic cart items, pricing subtotal calculation, and edit/quantity controls.
-- **Supabase Integration**: Includes the complete SQL schema with Row Level Security (RLS) policies for scaling this to a production backend.
-
-## Prerequisites
-
-- Node.js 18+
-- Supabase Account
-
-## Step-by-Step Setup
-
-1. **Clone the repository** (or export from AI Studio via Settings > Export to GitHub/ZIP).
-2. **Install dependencies**:
+1. Install dependencies:
    ```bash
    npm install
    ```
-3. **Database Setup**:
-   - Create a new project on [Supabase](https://supabase.com).
-   - Navigate to the **SQL Editor**.
-   - Copy the contents of `supabase/schema.sql` and run the script to create tables, RLS policies, and seed data.
-4. **Environment Variables**:
-   - Copy `.env.example` to `.env`:
-     ```bash
-     cp .env.example .env
-     ```
-   - Fill in your `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from your Supabase Project Settings > API.
-5. **Run the App**:
+
+2. Start the development server:
    ```bash
    npm run dev
    ```
-   Open `http://localhost:3000` in your browser. Use your browser's Developer Tools (Device Toolbar) to preview it as a mobile device for the best experience.
 
-## Building for Production
+## Extracting the APK (Android App)
 
-To build the static optimized application:
-```bash
-npm run build
-npm run start
-```
+This application is ready to be converted into a native Android APK using **Capacitor**. 
+Follow these steps in your local environment to generate the `.apk` file:
 
-## Known Limitations & Next Steps
+### Prerequisites
+- Node.js installed
+- Android Studio installed on your machine (to build the APK)
 
-- **Authentication UI**: The authentication flow (Sign Up / Log In) is stubbed in the UI to allow immediate previewing. Connecting this directly to `@supabase/auth-ui-react` is the natural next step.
-- **Payment Gateway**: The "Proceed to Checkout" button is a stub. You can integrate Stripe or CMI here for processing real transactions.
-- **State Persistence**: The cart currently uses React Context. Connecting the store to the `cart_items` table in Supabase via mutations is recommended for cross-device persistence.
-# kachdak-app-v1
-# kachdak-app-v1
-# kachdak-app-v1
-# kachdak-app-v1
-# kachdak-app-v1
-# kachdak-app-v1
-# kachdak-app-v1
+### Steps to build APK:
+
+1. **Install Capacitor CLI and Android package:**
+   ```bash
+   npm install @capacitor/core @capacitor/android
+   npm install -D @capacitor/cli
+   ```
+
+2. **Initialize Capacitor in the project:**
+   ```bash
+   npx cap init "Kechdak Coffee" "com.kechdak.app" --web-dir out
+   ```
+
+3. **Update Next.js configuration to support static export:**
+   Ensure your `next.config.ts` has `output: 'export'` instead of `standalone` for static generation if you only need client-side code in the APK, OR host the Next.js app and point the Capacitor config to your deployed URL.
+
+   If using your deployed URL, modify `capacitor.config.json`:
+   ```json
+   {
+     "appId": "com.kechdak.app",
+     "appName": "Kechdak",
+     "webDir": "out",
+     "bundledWebRuntime": false,
+     "server": {
+       "url": "https://your-deployed-app-url.com",
+       "cleartext": true
+     }
+   }
+   ```
+
+4. **Add Android project:**
+   ```bash
+   npx cap add android
+   ```
+
+5. **Sync the project:**
+   ```bash
+   npx cap sync
+   ```
+
+6. **Open in Android Studio to build the APK:**
+   ```bash
+   npx cap open android
+   ```
+   - In Android Studio, wait for Gradle to finish syncing.
+   - Go to **Build** > **Build Bundle(s) / APK(s)** > **Build APK(s)**.
+   - Once complete, click "locate" in the popup to find your `.apk` file.
+
+Alternatively, you can use **PWABuilder** (https://www.pwabuilder.com/) simply by deploying this site to a public URL and generating an APK from it in 2 minutes.

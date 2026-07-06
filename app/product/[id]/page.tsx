@@ -1,183 +1,173 @@
-'use client';
+"use client";
 
-import { ArrowLeft, Heart, Droplets, Coffee, Plus, Minus } from 'lucide-react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { motion, AnimatePresence } from 'motion/react';
-import { use, useState, useEffect } from 'react';
-import { supabase, Product } from '@/lib/supabase';
-import { useStore } from '@/lib/store';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter, useParams } from "next/navigation";
+import { ChevronLeft, Heart, Minus, Plus } from "lucide-react";
+import { useAuth } from "@/components/AuthProvider";
 
-export default function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
+interface Product {
+  id: number;
+  name: string;
+  price: string;
+  image: string;
+}
+
+export default function ProductDetail() {
   const router = useRouter();
-  const { id } = use(params);
-  const { addToCart, favorites, toggleFavorite } = useStore();
-  
+  const params = useParams();
+  const { user, getToken } = useAuth();
   const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [size, setSize] = useState<'Small' | 'Medium' | 'Large'>('Medium');
-  const [milkPercentage, setMilkPercentage] = useState(50);
+  const [size, setSize] = useState("Medium");
+  const [milk, setMilk] = useState(50);
   const [quantity, setQuantity] = useState(1);
-  const [showToast, setShowToast] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    async function loadProduct() {
-      const { data } = await supabase.from('products').select('*').eq('id', id).single();
-      if (data) setProduct(data);
+    fetch(`/api/products/${params.id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setProduct(data);
+      });
+  }, [params.id]);
+
+  const addToCart = async () => {
+    if (!user) {
+      alert("Please sign in to add to cart");
+      return;
+    }
+    setLoading(true);
+    try {
+      const token = await getToken();
+      await fetch("/api/cart", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productId: product?.id,
+          size,
+          milk,
+          quantity
+        })
+      });
+      router.push("/cart");
+    } catch (e) {
+      console.error(e);
+    } finally {
       setLoading(false);
     }
-    loadProduct();
-  }, [id]);
-
-  if (loading) return <div className="p-8 text-center text-gray-500 font-medium h-full flex items-center justify-center">Loading product...</div>;
-  if (!product) return <div className="p-8 text-center text-gray-500 font-medium h-full flex items-center justify-center">Product not found</div>;
-
-  const isFavorite = favorites.includes(product.id);
-
-  const handleAddToCart = () => {
-    const fullSize = `${size} - Milk: ${milkPercentage}%`;
-    addToCart(product.id, fullSize, quantity);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2000);
   };
 
-  return (
-    <div className="flex flex-col h-full bg-bg-light relative">
-      {/* Top Image Section */}
-      <div className="relative h-[320px] w-full curve-bottom shadow-sm">
-        <motion.div layoutId={`product-image-${product.id}`} className="absolute inset-0">
-          <Image 
-            src={product.image_url}
-            alt={product.name}
-            fill
-            className="object-cover"
-            priority
-            referrerPolicy="no-referrer"
-          />
-        </motion.div>
-        
-        {/* Overlay gradient for text readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent" />
+  if (!product) return <div className="p-8 text-center">Loading...</div>;
 
-        <div className="absolute top-12 w-full px-6 flex items-center justify-between z-10">
-          <button 
-            onClick={() => router.back()}
-            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md"
-          >
-            <ArrowLeft className="w-5 h-5 text-text-dark" />
+  return (
+    <main className="flex flex-col min-h-screen bg-[#FFF0E6]">
+      {/* Header & Image */}
+      <div className="relative h-72 rounded-b-[3rem] overflow-hidden drop-shadow-xl z-10 bg-white">
+        <Image
+          src={product.image}
+          alt={product.name}
+          fill
+          className="object-cover"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-black/10" />
+        <div className="absolute top-8 left-6 right-6 flex justify-between items-center">
+          <button onClick={() => router.back()} className="w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/40 transition">
+            <ChevronLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-xl font-bold text-white tracking-wide">{product.name}</h1>
-          <button 
-            onClick={() => toggleFavorite(product.id)}
-            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md"
-          >
-            <Heart className={`w-5 h-5 ${isFavorite ? 'text-primary fill-primary' : 'text-primary'}`} />
+          <h1 className="text-white font-bold font-outfit text-xl drop-shadow-md">{product.name}</h1>
+          <button className="w-10 h-10 bg-white/30 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/40 transition">
+            <Heart className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-[120px] pt-8 hide-scrollbar">
-        
-        {/* Ingredients Slider Placeholder */}
-        <div className="mb-10 text-center">
-          <h3 className="font-bold text-text-dark text-lg mb-6">Milk Percentage: {milkPercentage}%</h3>
-          <div className="relative flex items-center justify-center px-4 max-w-xs mx-auto">
+      <div className="flex-1 px-6 pt-8 pb-32">
+        {/* Ingredients */}
+        <div className="mb-8">
+          <h3 className="text-center font-bold text-[#3A1C20] mb-6">Ingredients</h3>
+          <div className="relative h-1 bg-[#E8D1C5] rounded-full mx-8">
+            <div className="absolute top-1/2 -translate-y-1/2 w-full flex justify-between px-0">
+              <div className="w-3 h-3 rounded-full bg-[#C44C27] border-2 border-[#FFF0E6] shadow-sm -ml-1.5"></div>
+              <div className="flex flex-col items-center -mt-6">
+                <div className="w-8 h-8 rounded-full bg-[#C44C27] flex items-center justify-center text-white mb-2 shadow-md">
+                  <span className="text-[10px] font-bold">🥛</span>
+                </div>
+                <span className="text-xs font-medium text-[#C44C27]">Milk</span>
+              </div>
+              <div className="w-3 h-3 rounded-full bg-[#C44C27] border-2 border-[#FFF0E6] shadow-sm -mr-1.5"></div>
+            </div>
+            {/* Range input overlay */}
             <input 
-              type="range"
-              min="0"
-              max="100"
-              step="10"
-              value={milkPercentage}
-              onChange={(e) => setMilkPercentage(Number(e.target.value))}
-              className="w-full h-2 bg-primary/20 rounded-lg appearance-none cursor-pointer accent-primary"
+              type="range" 
+              min="0" max="100" 
+              value={milk}
+              onChange={(e) => setMilk(parseInt(e.target.value))}
+              className="absolute inset-0 w-full opacity-0 cursor-pointer"
             />
           </div>
         </div>
 
-        {/* Coffee Size */}
-        <div className="mb-10 text-center">
-          <h3 className="font-bold text-text-dark text-lg mb-4">Coffee Size</h3>
+        {/* Size */}
+        <div className="mb-10 mt-12">
+          <h3 className="text-center font-bold text-[#3A1C20] mb-4">Coffee Size</h3>
           <div className="flex justify-center gap-4">
-            {(['Small', 'Medium', 'Large'] as const).map((s) => {
-              const isSelected = size === s;
-              const scale = s === 'Small' ? 0.8 : s === 'Medium' ? 1 : 1.2;
+            {["Small", "Medium", "Large"].map((s, idx) => {
+              const isActive = size === s;
+              const scale = 0.8 + idx * 0.2; // 0.8, 1.0, 1.2
               return (
                 <button
                   key={s}
                   onClick={() => setSize(s)}
-                  className={`w-20 pb-4 rounded-[20px] flex flex-col items-center justify-center gap-3 transition-colors ${
-                    isSelected ? 'bg-primary shadow-lg' : 'bg-white shadow-sm'
+                  className={`flex flex-col items-center justify-center w-20 h-20 rounded-2xl transition-all ${
+                    isActive ? "bg-[#C44C27] shadow-lg shadow-[#C44C27]/30" : "bg-white shadow-sm"
                   }`}
                 >
-                  <div className={`w-16 h-16 flex items-center justify-center`}>
-                    <Coffee className={`${isSelected ? 'text-white' : 'text-primary'}`} style={{ transform: `scale(${scale})` }} strokeWidth={isSelected ? 2.5 : 2} />
+                  <div className={`mb-1 ${isActive ? "text-white" : "text-[#C44C27]"}`} style={{ transform: `scale(${scale})` }}>
+                    ☕
                   </div>
-                  <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-text-dark'}`}>{s}</span>
+                  <span className={`text-xs font-medium ${isActive ? "text-white" : "text-[#3A1C20]"}`}>{s}</span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Quantity Stepper */}
-        <div className="flex items-center justify-center gap-6">
-          <motion.button 
-            whileTap={{ scale: 0.8 }}
+        {/* Quantity */}
+        <div className="flex justify-center items-center gap-6">
+          <button 
             onClick={() => setQuantity(Math.max(1, quantity - 1))}
-            className="w-10 h-10 rounded-full border-2 border-primary flex items-center justify-center text-primary bg-white"
+            className="w-10 h-10 rounded-xl border-2 border-[#3A1C20] flex items-center justify-center text-[#3A1C20]"
           >
             <Minus className="w-5 h-5" />
-          </motion.button>
-          <span className="text-2xl font-bold text-text-dark w-6 text-center">{quantity}</span>
-          <motion.button 
-            whileTap={{ scale: 0.8 }}
+          </button>
+          <span className="text-2xl font-bold font-outfit text-[#3A1C20] w-8 text-center">{quantity}</span>
+          <button 
             onClick={() => setQuantity(quantity + 1)}
-            className="w-10 h-10 rounded-full border-2 border-primary flex items-center justify-center text-primary bg-white"
+            className="w-10 h-10 rounded-xl border-2 border-[#3A1C20] flex items-center justify-center text-[#3A1C20]"
           >
             <Plus className="w-5 h-5" />
-          </motion.button>
+          </button>
         </div>
-
       </div>
 
-      {/* Bottom Fixed Bar */}
-      <div className="absolute bottom-0 w-full h-[110px] bg-surface-dark curve-top px-8 py-5 flex items-center justify-between z-20">
+      {/* Bottom Action */}
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#3A1C20] text-white rounded-t-3xl p-6 flex justify-between items-center shadow-[0_-10px_40px_rgba(58,28,32,0.1)] z-50">
         <div className="flex flex-col">
-          <AnimatePresence mode="popLayout">
-            <motion.span 
-              key={quantity * product.price}
-              initial={{ y: -10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="text-2xl font-bold text-white tracking-wide"
-            >
-              ${(product.price * quantity).toFixed(2)}
-            </motion.span>
-          </AnimatePresence>
+          <span className="text-2xl font-bold font-outfit">${product.price}</span>
         </div>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={handleAddToCart}
-          className="bg-primary text-white font-bold text-lg px-8 py-3.5 rounded-full shadow-lg"
+        <button 
+          onClick={addToCart}
+          disabled={loading}
+          className="bg-transparent text-white font-medium text-sm"
         >
-          Add to Cart
-        </motion.button>
+          {loading ? "Adding..." : "Add to Cart"}
+        </button>
       </div>
-
-      {/* Toast Notification */}
-      <AnimatePresence>
-        {showToast && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, x: '-50%' }}
-            animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, y: 50, x: '-50%' }}
-            className="absolute bottom-32 left-1/2 bg-green-500 text-white px-6 py-3 rounded-full shadow-lg font-medium z-50 whitespace-nowrap"
-          >
-            Added to cart!
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-    </div>
+    </main>
   );
 }

@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "Kechdak",
+  "description": "A modern, production-ready coffee shop application with a curated menu, shopping cart, and checkout flow.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
