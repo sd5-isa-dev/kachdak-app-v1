@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Kechdak Coffee</string>
+    <string name="title_activity_main">Kechdak Coffee</string>
+    <string name="package_name">com.kechdak.app</string>
+    <string name="custom_url_scheme">com.kechdak.app</string>
+</resources>
