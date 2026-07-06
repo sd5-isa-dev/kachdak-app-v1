@@ -4,7 +4,7 @@
   "webDir": "out",
   "bundledWebRuntime": false,
   "server": {
-    "url": "https://your-deployed-app-url.com",
+    "url": "https://kachdak.vercel.app/",
     "cleartext": true
   }
 }
