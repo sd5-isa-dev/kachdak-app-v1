@@ -55,3 +55,4 @@ npm run start
 - **State Persistence**: The cart currently uses React Context. Connecting the store to the `cart_items` table in Supabase via mutations is recommended for cross-device persistence.
 # kachdak-app-v1
 # kachdak-app-v1
+# kachdak-app-v1
