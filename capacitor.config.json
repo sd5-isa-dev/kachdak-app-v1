@@ -1,0 +1,10 @@
+{
+  "appId": "com.kechdak.app",
+  "appName": "Kechdak",
+  "webDir": "out",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://your-deployed-app-url.com",
+    "cleartext": true
+  }
+}
